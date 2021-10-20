@@ -1,7 +1,10 @@
 const TILE_SIZE = 24
 const WALL_COLOR = '#000'
 const PLAYER_COLOR = '#282'
-const GRAVITY = 3
+const GRAVITY = 0.3
+const FRICTION = 0.7
+const VELOCITY = 3
+
 const MAP = `
 ,,,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,
@@ -13,14 +16,14 @@ const MAP = `
 ,,,,,,,,,,,##,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,
 ,,,,,##,,@,,,,,,,,,,
+,,,,,,,,,,###,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,,,,,,
+,,#,,,,,,,,,,,,,,#,,
+,,#,,,,,,,,,#,,,,#,,
 ,,################,,
 ,,,,,,,,,,,,,,,,,,,,
 `
@@ -32,6 +35,8 @@ class Entity {
     this.width = width
     this.height = height
     this.color = color
+    this.vx = 0
+    this.vy = 0
   }
 
   get left () {
@@ -150,32 +155,86 @@ function main () {
 
 let isOnTheGround = false
 
+function getNearestWall () {
+  let length = Number.MAX_SAFE_INTEGER
+  let nearestWall = null
+  for (const wall of world.walls) {
+    const currentLength = Math.sqrt((world.player.x - wall.x) ** 2 + (world.player.y - wall.y) ** 2)
+    if (currentLength < length) {
+      length = currentLength
+      nearestWall = wall
+    }
+  }
+
+  return nearestWall
+}
+
+function isColiding (ent1, ent2) {
+  return ent1.x < ent2.right &&
+    ent1.right > ent2.x &&
+    ent1.y < ent2.bottom &&
+    ent1.bottom > ent2.y
+}
+
 function loop () {
   drawWorld()
 
-  world.player.y += GRAVITY
+  if (keys.left === keys.right) {
+    world.player.vx *= FRICTION
+  } else {
+    if (keys.left) {
+      world.player.vx = -VELOCITY
+    }
 
-  if (isOnTheGround && keys.jump) {
-    world.player.y -= 100
+    if (keys.right) {
+      world.player.vx = VELOCITY
+    }
   }
 
-  isOnTheGround = false
+  if (isOnTheGround && keys.jump) {
+    world.player.vy = -2 * VELOCITY
+    isOnTheGround = false
+  }
+
+  if (!isOnTheGround) {
+    world.player.vy += GRAVITY
+  } else {
+    world.player.vy = 0
+  }
+
+  world.player.x += world.player.vx
+  world.player.y += world.player.vy
+
+  // isOnTheGround = false
+
+  // Step 1: get the nearest wall.
+  const wall = getNearestWall()
+
   for (const wall of world.walls) {
+    wall.color = WALL_COLOR
+  }
+  // Step 2: check if player collides with the nearest wall.
+
+  // Step 3: correct player position.
+
+  if (isColiding(world.player, wall)) {
+    wall.color = '#f88'
     if (world.player.bottom > wall.top && world.player.bottom < wall.bottom) {
       world.player.bottom = wall.top
       isOnTheGround = true
+    } else {
+      isOnTheGround = false
     }
 
-    if (world.player.top < wall.bottom && world.player.top > wall.top) {
-      world.player.top = wall.bottom
-    }
+    // if (world.player.top < wall.bottom && world.player.top > wall.top) {
+    //   world.player.top = wall.bottom
+    // }
+
+    // if (world.player.right > wall.left && world.player.right < wall.right) {
+    //   world.player.right = wall.left
+    // }
   }
 
-  // if (isOnTheGround && keys.jump) {
-  //   worldd.player.
-  // }
-
-  // TODO: Redraw.
   window.requestAnimationFrame(loop)
 }
 
