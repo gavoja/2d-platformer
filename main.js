@@ -1,11 +1,13 @@
-const { Engine, Render, Runner, Bodies, Body, Composite } = window.Matter
+// const { Engine, Render, Runner, Bodies, Body, Composite } = window.Matter
 
-const MAX_VELOCITY = 4
-const JUMP_FORCE = 0.03
-const GRAVITY = 4
-const MOVEMENT_FORCE = 0.002
+const planck = window.planck
 
-const TILE_SIZE = 24
+// const MAX_VELOCITY = 4
+// const JUMP_FORCE = 0.03
+// const GRAVITY = 4
+// const MOVEMENT_FORCE = 0.002
+
+// const TILE_SIZE = 24
 const MAP = `
 ,,,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,
@@ -32,136 +34,205 @@ const MAP = `
 const walls = []
 const players = []
 
-function createWorld () {
+function createWall (world, x, y) {
+  const groundBody = world.createBody({
+    position: planck.Vec2(x, y)
+  })
+
+  const groundBox = planck.Box(1.0, 1.0)
+  groundBody.createFixture(groundBox, 0.0)
+}
+
+function createPlayer (world, x, y) {
+  const groundBody = world.createDynamicBody({
+    position: planck.Vec2(x, y)
+  })
+
+  const groundBox = planck.Box(1.0, 1.0)
+  groundBody.createFixture(groundBox, 0.0)
+}
+
+planck.testbed(testbed => {
+  testbed.x = 49
+  testbed.y = 49
+  testbed.width = 100
+  testbed.height = 100
+
+  const world = new planck.World({
+    gravity: planck.Vec2(0, -50)
+  })
+
   let y = 0
   for (const line of MAP.trim().split('\n')) {
     let x = 0
     for (const char of line) {
       if (char === '#') {
-        const wall = Bodies.rectangle(x, y, TILE_SIZE, TILE_SIZE, {
-          isStatic: true,
-          render: {
-            fillStyle: '#44a',
-            strokeStyle: 0
-          }
-        })
-        walls.push(wall)
+        console.log(x, y)
+        createWall(world, x, -y)
       }
 
       if (char === '@') {
-        const player = Bodies.rectangle(x, y, TILE_SIZE, TILE_SIZE, {
-          inertia: Infinity, // Prevent rotation.
-          render: {
-            fillStyle: 'red',
-            lineWidth: 0
-          }
-        })
-        players.push(player)
+        createPlayer(world, x, -y)
       }
 
-      x += TILE_SIZE
+      x += 2
     }
 
-    y += TILE_SIZE
+    y += 2
   }
-  console.log('Hello!')
-}
 
-const keys = { left: false, right: false }
-
-document.addEventListener('keydown', event => {
-  keys.right = event.key === 'd'
-  keys.left = event.key === 'a'
-  keys.up = event.key === 'w'
-  // console.log(player.velocity)
+  return world
 })
 
-document.addEventListener('keyup', event => {
-  if (keys.right && event.key === 'd') {
-    keys.right = false
-  }
+// function createWorld () {
+//   let y = 0
+//   for (const line of MAP.trim().split('\n')) {
+//     let x = 0
+//     for (const char of line) {
+//       if (char === '#') {
+//         // const wall = Bodies.rectangle(x, y, TILE_SIZE, TILE_SIZE, {
+//         //   isStatic: true,
+//         //   render: {
+//         //     fillStyle: '#44a',
+//         //     strokeStyle: 0
+//         //   }
+//         // })
 
-  if (keys.left && event.key === 'a') {
-    keys.left = false
-  }
+//         const offset = 3
+//         const vertices = [
+//           { x: x + offset, y: y },
+//           { x: x + TILE_SIZE - offset, y: y },
+//           { x: x + TILE_SIZE, y: y + offset },
+//           { x: x + TILE_SIZE, y: y + TILE_SIZE - offset },
+//           { x: x + TILE_SIZE - offset, y: y + TILE_SIZE },
+//           { x: x + offset, y: y + TILE_SIZE },
+//           { x: x, y: y + TILE_SIZE - offset },
+//           { x: x, y: y + offset }
+//         ]
+//         const wall = Bodies.fromVertices(vertices[0].x, vertices[0].y, vertices, {
+//           isStatic: true,
+//           render: {
+//             fillStyle: '#44a',
+//             strokeStyle: 0
+//           }
+//         })
+//         walls.push(wall)
+//       }
 
-  if (keys.up && event.key === 'w') {
-    keys.up = false
-  }
-})
+//       if (char === '@') {
+//         const player = Bodies.rectangle(x, y, TILE_SIZE, TILE_SIZE, {
+//           inertia: Infinity, // Prevent rotation.
+//           render: {
+//             fillStyle: 'red',
+//             lineWidth: 0
+//           }
+//         })
+//         players.push(player)
+//       }
 
-// create an engine
-const engine = Engine.create({
-  gravity: { x: 0, y: GRAVITY }
-})
+//       x += TILE_SIZE
+//     }
 
-// create a renderer
-const render = Render.create({
-  element: document.body,
-  engine: engine,
-  options: {
-    width: 800,
-    height: 600,
-    wireframes: false
-  }
-})
+//     y += TILE_SIZE
+//   }
+//   console.log('Hello!')
+// }
 
-createWorld()
+// const keys = { left: false, right: false }
 
-// add all of the bodies to the world
-Composite.add(engine.world, [...walls, ...players])
+// document.addEventListener('keydown', event => {
+//   keys.right = event.key === 'd'
+//   keys.left = event.key === 'a'
+//   keys.up = event.key === 'w'
+//   // console.log(player.velocity)
+// })
 
-// run the renderer
-Render.run(render)
+// document.addEventListener('keyup', event => {
+//   if (keys.right && event.key === 'd') {
+//     keys.right = false
+//   }
 
-// create runner
-// const runner = Runner.create({ isFixed: true })
-// run the engine
-// Runner.run(runner, engine)
+//   if (keys.left && event.key === 'a') {
+//     keys.left = false
+//   }
 
-const DELTA = 1000 / 60
+//   if (keys.up && event.key === 'w') {
+//     keys.up = false
+//   }
+// })
 
-function update () {
-  const player = players[0]
+// // create an engine
+// const engine = Engine.create({
+//   gravity: { x: 0, y: GRAVITY }
+// })
 
-  if (keys.right && !keys.left) {
-    player.friction = 0
-    Body.applyForce(player, player.position, { x: MOVEMENT_FORCE, y: 0 })
-  }
+// // create a renderer
+// const render = Render.create({
+//   element: document.body,
+//   engine: engine,
+//   options: {
+//     width: 800,
+//     height: 600,
+//     wireframes: false
+//   }
+// })
 
-  if (keys.left && !keys.right) {
-    player.friction = 0
-    Body.applyForce(player, player.position, { x: -MOVEMENT_FORCE, y: 0 })
-  }
+// createWorld()
 
-  if (keys.up && Math.abs(player.velocity.y) < 0.0000001) {
-    Body.applyForce(player, player.position, { x: 0, y: -JUMP_FORCE })
-  }
+// // add all of the bodies to the world
+// Composite.add(engine.world, [...walls, ...players])
 
-  console.log(player.velocity.y)
+// // run the renderer
+// Render.run(render)
 
-  // Speed limit.
-  const velx = Math.abs(player.velocity.x)
-  if (velx > MAX_VELOCITY) {
-    Body.setVelocity(player, { x: player.velocity.x / velx * MAX_VELOCITY, y: player.velocity.y })
-  }
+// // create runner
+// // const runner = Runner.create({ isFixed: true })
+// // run the engine
+// // Runner.run(runner, engine)
 
-  console.log(player.velocity)
+// const DELTA = 1000 / 60
 
-  if (!keys.left && !keys.right) {
-    player.friction = 0.8
-  }
+// function update () {
+//   const player = players[0]
 
-  Engine.update(engine, DELTA)
-}
+//   if (keys.right && !keys.left) {
+//     player.friction = 0
+//     Body.applyForce(player, player.position, { x: MOVEMENT_FORCE, y: 0 })
+//   }
 
-// TODO: Make it better.
-function animate () {
-  update()
+//   if (keys.left && !keys.right) {
+//     player.friction = 0
+//     Body.applyForce(player, player.position, { x: -MOVEMENT_FORCE, y: 0 })
+//   }
 
-  setTimeout(function () {
-    requestAnimationFrame(animate)
-  }, DELTA)
-}
+//   if (keys.up && Math.abs(player.velocity.y) < 0.0000001) {
+//     Body.applyForce(player, player.position, { x: 0, y: -JUMP_FORCE })
+//   }
 
-animate()
+//   console.log(player.velocity.y)
+
+//   // Speed limit.
+//   const velx = Math.abs(player.velocity.x)
+//   if (velx > MAX_VELOCITY) {
+//     Body.setVelocity(player, { x: player.velocity.x / velx * MAX_VELOCITY, y: player.velocity.y })
+//   }
+
+//   console.log(player.velocity)
+
+//   if (!keys.left && !keys.right) {
+//     player.friction = 0.8
+//   }
+
+//   Engine.update(engine, DELTA)
+// }
+
+// // TODO: Make it better.
+// function animate () {
+//   update()
+
+//   setTimeout(function () {
+//     requestAnimationFrame(animate)
+//   }, DELTA)
+// }
+
+// animate()
