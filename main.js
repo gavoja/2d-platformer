@@ -19,12 +19,12 @@ const MAP = `
 ,,#,,,,,,,,##,,,,,,,
 ,,#,,,,,,,,,,,,,,,,,
 ,,#,,##,,@,,,,,,,,,,
-,,#,,,,,,,###,,,,,,,
 ,,#,,,,,,,,,,,,,,,,,
 ,,#,,,,,,,,,,,,,,,,,
 ,,#,,,,,,,,,,,,,,,,,
+,,#,,,,,,,,#######,,
 ,,#,,,,,,,,,,,,,,,,,
-,,#,,,,,,,,,,,,,,,,,
+,,#####,,,,,,,,,,,,,
 ,,#,,,,,,,,,,,,,,#,,
 ,,#,,,,,,,,,#,,,,#,,
 ,,################,,
@@ -32,24 +32,59 @@ const MAP = `
 `
 
 const walls = []
-const players = []
+let player
+let playerFixture = null
+let playerSensor = null
+let isInAir = false
+
+const keys = { left: false, right: false }
+
+document.addEventListener('keydown', event => {
+  keys.right = event.key === 'd'
+  keys.left = event.key === 'a'
+  keys.up = event.key === 'w'
+  // console.log(player.velocity)
+})
+
+document.addEventListener('keyup', event => {
+  if (keys.right && event.key === 'd') {
+    keys.right = false
+  }
+
+  if (keys.left && event.key === 'a') {
+    keys.left = false
+  }
+
+  if (keys.up && event.key === 'w') {
+    keys.up = false
+  }
+})
 
 function createWall (world, x, y) {
-  const groundBody = world.createBody({
+  const body = world.createBody({
     position: planck.Vec2(x, y)
   })
 
-  const groundBox = planck.Box(1.0, 1.0)
-  groundBody.createFixture(groundBox, 0.0)
+  const fixture = planck.Box(1.0, 1.0)
+  body.createFixture(fixture, 0.0)
+  walls.push(body)
 }
 
 function createPlayer (world, x, y) {
-  const groundBody = world.createDynamicBody({
-    position: planck.Vec2(x, y)
+  const body = world.createDynamicBody({
+    position: planck.Vec2(x, y),
+    allowSleep: false
   })
 
-  const groundBox = planck.Box(1.0, 1.0)
-  groundBody.createFixture(groundBox, 0.0)
+  const fixture = planck.Box(1.0, 1.0)
+  body.createFixture(fixture, 0.0)
+  player = body
+  playerFixture = fixture
+
+  playerSensor = body.createFixture({
+    shape: planck.Box(0.8, 0.5, planck.Vec2(0, -0.7)),
+    isSensor: true
+  })
 }
 
 planck.testbed(testbed => {
@@ -67,7 +102,6 @@ planck.testbed(testbed => {
     let x = 0
     for (const char of line) {
       if (char === '#') {
-        console.log(x, y)
         createWall(world, x, -y)
       }
 
@@ -81,158 +115,72 @@ planck.testbed(testbed => {
     y += 2
   }
 
+  world.on('begin-contact', contact => {
+    const fixtureA = contact.getFixtureA()
+    const fixtureB = contact.getFixtureB()
+
+    if (fixtureA === playerSensor || fixtureB === playerSensor) {
+      isInAir = false
+    }
+  })
+
+  world.on('end-contact', contact => {
+    const fixtureA = contact.getFixtureA()
+    const fixtureB = contact.getFixtureB()
+
+    if (fixtureA === playerSensor || fixtureB === playerSensor) {
+      isInAir = true
+    }
+  })
+
+  testbed.step = () => {
+    // Go left.
+    if (testbed.activeKeys.left && !testbed.activeKeys.right) {
+      const f = player.getWorldVector(planck.Vec2(-1.0, 0))
+      const p = player.getWorldPoint(planck.Vec2(0.0, 0.0))
+
+      const vel = player.getLinearVelocity()
+
+      if (vel.x > -15) {
+        player.applyLinearImpulse(f, p, true)
+      }
+    }
+
+    // Go right.
+    if (testbed.activeKeys.right && !testbed.activeKeys.left) {
+      const f = player.getWorldVector(planck.Vec2(1.0, 0))
+      const p = player.getWorldPoint(planck.Vec2(0.0, 0.0))
+
+      const vel = player.getLinearVelocity()
+
+      if (vel.x < 15) {
+        player.applyLinearImpulse(f, p, true)
+      }
+    }
+
+    if (!isInAir && !testbed.activeKeys.right && !testbed.activeKeys.left) {
+      const vel = player.getLinearVelocity()
+      if (vel.x > 0) {
+        const f = player.getWorldVector(planck.Vec2(-1.0, 0))
+        const p = player.getWorldPoint(planck.Vec2(0.0, 0.0))
+        player.applyLinearImpulse(f, p, true)
+      }
+
+      if (vel.x < 0) {
+        const f = player.getWorldVector(planck.Vec2(1.0, 0))
+        const p = player.getWorldPoint(planck.Vec2(0.0, 0.0))
+        player.applyLinearImpulse(f, p, true)
+      }
+    }
+
+    // Jump.
+    if (!isInAir && testbed.activeKeys.up) {
+      const f = player.getWorldVector(planck.Vec2(0, 10.0))
+      const p = player.getWorldPoint(planck.Vec2(0.0, 0.0))
+
+      player.applyLinearImpulse(f, p, true)
+    }
+  }
+
   return world
 })
-
-// function createWorld () {
-//   let y = 0
-//   for (const line of MAP.trim().split('\n')) {
-//     let x = 0
-//     for (const char of line) {
-//       if (char === '#') {
-//         // const wall = Bodies.rectangle(x, y, TILE_SIZE, TILE_SIZE, {
-//         //   isStatic: true,
-//         //   render: {
-//         //     fillStyle: '#44a',
-//         //     strokeStyle: 0
-//         //   }
-//         // })
-
-//         const offset = 3
-//         const vertices = [
-//           { x: x + offset, y: y },
-//           { x: x + TILE_SIZE - offset, y: y },
-//           { x: x + TILE_SIZE, y: y + offset },
-//           { x: x + TILE_SIZE, y: y + TILE_SIZE - offset },
-//           { x: x + TILE_SIZE - offset, y: y + TILE_SIZE },
-//           { x: x + offset, y: y + TILE_SIZE },
-//           { x: x, y: y + TILE_SIZE - offset },
-//           { x: x, y: y + offset }
-//         ]
-//         const wall = Bodies.fromVertices(vertices[0].x, vertices[0].y, vertices, {
-//           isStatic: true,
-//           render: {
-//             fillStyle: '#44a',
-//             strokeStyle: 0
-//           }
-//         })
-//         walls.push(wall)
-//       }
-
-//       if (char === '@') {
-//         const player = Bodies.rectangle(x, y, TILE_SIZE, TILE_SIZE, {
-//           inertia: Infinity, // Prevent rotation.
-//           render: {
-//             fillStyle: 'red',
-//             lineWidth: 0
-//           }
-//         })
-//         players.push(player)
-//       }
-
-//       x += TILE_SIZE
-//     }
-
-//     y += TILE_SIZE
-//   }
-//   console.log('Hello!')
-// }
-
-// const keys = { left: false, right: false }
-
-// document.addEventListener('keydown', event => {
-//   keys.right = event.key === 'd'
-//   keys.left = event.key === 'a'
-//   keys.up = event.key === 'w'
-//   // console.log(player.velocity)
-// })
-
-// document.addEventListener('keyup', event => {
-//   if (keys.right && event.key === 'd') {
-//     keys.right = false
-//   }
-
-//   if (keys.left && event.key === 'a') {
-//     keys.left = false
-//   }
-
-//   if (keys.up && event.key === 'w') {
-//     keys.up = false
-//   }
-// })
-
-// // create an engine
-// const engine = Engine.create({
-//   gravity: { x: 0, y: GRAVITY }
-// })
-
-// // create a renderer
-// const render = Render.create({
-//   element: document.body,
-//   engine: engine,
-//   options: {
-//     width: 800,
-//     height: 600,
-//     wireframes: false
-//   }
-// })
-
-// createWorld()
-
-// // add all of the bodies to the world
-// Composite.add(engine.world, [...walls, ...players])
-
-// // run the renderer
-// Render.run(render)
-
-// // create runner
-// // const runner = Runner.create({ isFixed: true })
-// // run the engine
-// // Runner.run(runner, engine)
-
-// const DELTA = 1000 / 60
-
-// function update () {
-//   const player = players[0]
-
-//   if (keys.right && !keys.left) {
-//     player.friction = 0
-//     Body.applyForce(player, player.position, { x: MOVEMENT_FORCE, y: 0 })
-//   }
-
-//   if (keys.left && !keys.right) {
-//     player.friction = 0
-//     Body.applyForce(player, player.position, { x: -MOVEMENT_FORCE, y: 0 })
-//   }
-
-//   if (keys.up && Math.abs(player.velocity.y) < 0.0000001) {
-//     Body.applyForce(player, player.position, { x: 0, y: -JUMP_FORCE })
-//   }
-
-//   console.log(player.velocity.y)
-
-//   // Speed limit.
-//   const velx = Math.abs(player.velocity.x)
-//   if (velx > MAX_VELOCITY) {
-//     Body.setVelocity(player, { x: player.velocity.x / velx * MAX_VELOCITY, y: player.velocity.y })
-//   }
-
-//   console.log(player.velocity)
-
-//   if (!keys.left && !keys.right) {
-//     player.friction = 0.8
-//   }
-
-//   Engine.update(engine, DELTA)
-// }
-
-// // TODO: Make it better.
-// function animate () {
-//   update()
-
-//   setTimeout(function () {
-//     requestAnimationFrame(animate)
-//   }, DELTA)
-// }
-
-// animate()
